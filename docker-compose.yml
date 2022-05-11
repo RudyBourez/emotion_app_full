@@ -1,0 +1,51 @@
+version: "3.8"
+
+networks:
+  AIservice:
+
+services:
+  frontend:
+    build: Streamlit
+    ports:
+      - 8501:8501
+    networks: 
+      AIservice: 
+        aliases: 
+          - frontend.docker
+    depends_on:
+      - backend
+      - database
+    volumes:
+        - ./Streamlit:/app
+        - ./storage:/storage
+
+  backend:
+    build: API
+    ports:
+      - 8000:8000
+    networks: 
+      AIservice: 
+        aliases: 
+          - backend.docker
+    depends_on:
+      - database
+    volumes:
+      - ./API:/app
+      - ./storage:/storage
+  
+  database:
+    build: BDD
+    restart: always
+    networks: 
+      AIservice: 
+        aliases: 
+          - database.docker
+    environment:
+      POSTGRES_PASSWORD: 123456
+      POSTGRES_DB: emotion_db 
+      POSTGRES_USER: admin
+    ports: 
+      - 5432:5432
+    volumes:
+      - ./BDD:/app
+      - ./storage:/storage
