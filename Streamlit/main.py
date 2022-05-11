@@ -17,7 +17,7 @@ def get_dates():
     return requests.get("http://host.docker.internal:8000/get_dates")
 
 def get_informations(patient):
-    response = requests.get("http://host.docker.internal:8000/patients_info", patient).json()
+    response = requests.get(f"http://host.docker.internal:8000/patients_info/{patient}").json()
     print(response)
     return response
 
@@ -92,26 +92,28 @@ def main():
                 # ------------------------------Form for patients informations---------------------------------
                 selection_information = st.expander(label="Informations")
                 selection_information.header("Patients informations")
-                crud = selection_information.selectbox(options=["Add","Delete","Modify"], label="action")
-                if crud == "Add":
-                    information_form = st.form(key="add", clear_on_submit=True)
-                    first_name = information_form.text_input(label="first_name")
-                    last_name = information_form.text_input(label="last_name")
-                    birthdate = information_form.date_input(label="birthdate")
-                    email = information_form.text_input(label="email")
-                    information_submit = information_form.form_submit_button("Submit")
-                elif crud == "Delete":
-                    information_form = st.form(key="delete", clear_on_submit=True)
-                    patient_selection = information_form.selectbox(options=patients_name, label="Name")
-                else:
-                    information_form = st.form(key="delete", clear_on_submit=True)
-                    patient_selection = information_form.selectbox(options=patients_name, label="Name")
-                    patient_informations = get_informations(patient_selection)
-                    first_name = information_form.text_input(label="first_name", value=f"{patient_informations[0]}")
-                    last_name = information_form.text_input(label="last_name", value=f"{patient_informations[0]}")
-                    birthdate = information_form.date_input(label="birthdate", value=f"{patient_informations[0]}")
-                    email = information_form.text_input(label="email", value=f"{patient_informations[0]}")
-                    information_submit = information_form.form_submit_button("Submit")
+                crud = selection_information.selectbox(options=["","Add","Delete","Modify"], label="action")
+            if crud == "Add":
+                information_form = st.form(key="add", clear_on_submit=True)
+                first_name = information_form.text_input(label="first_name")
+                last_name = information_form.text_input(label="last_name")
+                birthdate = information_form.date_input(label="birthdate")
+                email = information_form.text_input(label="email")
+                add_submit = information_form.form_submit_button("Submit")
+            elif crud == "Delete":
+                information_form = st.form(key="delete", clear_on_submit=True)
+                patient_selection = information_form.selectbox(options=patients_name, label="Name")
+                radio = information_form.checkbox("Are you that you want to delete this entry ?")
+                delete_form = information_form.form_submit_button("Delete")
+            elif crud == "Modify":
+                patient_selection = st.selectbox(options=patients_name, label="Name")
+                information_form = st.form(key="modify", clear_on_submit=True)
+                patient_informations = get_informations(patient_selection)
+                first_name = information_form.text_input(label="First Name", value=patient_informations[0])
+                last_name = information_form.text_input(label="Last Name", value=patient_informations[1])
+                birthdate = information_form.date_input(label="Birthdate")
+                email = information_form.text_input(label="Email", value=patient_informations[2])
+                information_submit = information_form.form_submit_button("Submit")
                 # ---------------------------------------------------------------------------------------------
         else:
             st.write("Welcome customer")

@@ -33,13 +33,17 @@ def get_dates():
 @app.get("/patients_info/{patient}")
 def get_infos(patient):
     liste = patient.split(" ")
-    print(liste)
     conn = sqlite3.connect("../storage/emotion_db.db")
     cursor = conn.cursor()
-    df = pd.DataFrame
-    df["informations"] = [item[0] for item in cursor.execute("SELECT * FROM user WHERE user.first_name == ? AND user.last_name == ?",liste)]
-    return df["information"].to_json(orient="index")
-    
+    row = cursor.execute(
+        """
+        SELECT first_name,last_name,email,birthdate
+        FROM user 
+        WHERE first_name = ?
+        AND last_name = ?;
+        """, (liste[0], liste[1])
+        ).fetchone()
+    return row   
 
 
 
