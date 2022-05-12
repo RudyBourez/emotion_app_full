@@ -146,7 +146,7 @@ def main():
                             "first_name": first_name_modify,
                             "last_name": last_name_modify,
                             "birthdate": birthdate_modify,
-                            "email": email_modify})
+                            "email": email_modify}).json()[0]
 
             if patients_list:
                 response = requests.get("http://host.docker.internal:8000/patients_list").json()
@@ -163,13 +163,22 @@ def main():
                 action = st.radio(label="Options", options=["Add an entry", "Modify last entry", "Check entries"])
 
             if action == "Add an entry":
-                form = st.form(key="Add an entry")
-                text = form.text_input(label="Type your text")
-                submit = form.form_submit_button("Submit")
+                form_add = st.form(key="Add an entry")
+                text_add = form_add.text_input(label="Type your text")
+                submit_add = form_add.form_submit_button("Submit")
 
             if action == "Modify last entry":
-                response = requests.get("http://host.docker.internal:8000/get_entry/{patient}", patient=st.session_state["username"]).json()
-            
+                response = requests.get(f'http://host.docker.internal:8000/get_entry/{st.session_state["username"]}').json()
+                form_modify = st.form(key="Modify last entry")
+                text_modify = form_modify.text_input(label="Type your text", value=response)
+                submit_modify = form_modify.form_submit_button("Submit")
+
+            if submit_modify:
+                response = requests.post('http://host.docker.internal:8000/modify_text', json= {
+                    "text": text_modify,
+                    "email": st.session_state["username"]
+                }).json()[0]
+                st.success(response)
 if __name__ == '__main__':
     if st._is_running_with_streamlit:
         conn = init_connection()

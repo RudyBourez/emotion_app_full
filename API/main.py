@@ -1,4 +1,3 @@
-from datetime import date
 from typing import Dict
 from fastapi import FastAPI
 import uvicorn
@@ -72,17 +71,39 @@ def get_last_entry(patient):
     cursor = conn.cursor()
     row = cursor.execute(
         """
-        SELECT text
-        FROM text as t
+        SELECT entered_text, MAX(publication_date)
+        FROM texte as t
         JOIN user as u
         ON t.user_id = u.id
-        WHERE t.date_publication = ;
-        """
+        WHERE u.email = ?;
+        """,
+        (patient,)
         ).fetchone()
     close_db(conn)
-    return row   
+    return row[0]   
 
-
+@app.post("/modify_text")
+def modify_text(data: Dict):
+    conn = sqlite3.connect("../storage/emotion_db.db")
+    cursor = conn.cursor()
+    texte = data["text"]
+    email = data["email"]
+    cursor.execute(
+        """
+        UPDATE texte
+        SET entered_text = ?
+        WHERE (
+            SELECT MAX(publication_date)
+            FROM texte
+            JOIN user 
+            ON user.id = texte.user_id
+            WHERE user.email = ?
+        )
+        """,
+        (texte, email,)
+    )
+    close_db(conn)
+    return {"Last entry successfully updated"}
 
 @app.post('/modify')
 def post_entry(data: Dict):
