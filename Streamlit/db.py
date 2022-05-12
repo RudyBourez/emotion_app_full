@@ -18,8 +18,8 @@ cursor.execute(
 cursor.execute(
     '''
     CREATE TABLE IF NOT EXISTS texte (
-    id NOT NULL PRIMARY KEY,
-    user_id INT NOT NULL,
+    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
     entered_text TEXT,
     publication_date DATE NOT NULL
     );

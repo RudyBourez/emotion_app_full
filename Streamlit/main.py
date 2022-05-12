@@ -165,20 +165,29 @@ def main():
             if action == "Add an entry":
                 form_add = st.form(key="Add an entry")
                 text_add = form_add.text_input(label="Type your text")
-                submit_add = form_add.form_submit_button("Submit")
+                submit = form_add.form_submit_button("Submit")
 
             if action == "Modify last entry":
                 response = requests.get(f'http://host.docker.internal:8000/get_entry/{st.session_state["username"]}').json()
-                form_modify = st.form(key="Modify last entry")
-                text_modify = form_modify.text_input(label="Type your text", value=response)
-                submit_modify = form_modify.form_submit_button("Submit")
+                form = st.form(key="Modify last entry")
+                text_modify = form.text_input(label="Type your text", value=response)
+                submit = form.form_submit_button("Submit")
 
-            if submit_modify:
-                response = requests.post('http://host.docker.internal:8000/modify_text', json= {
-                    "text": text_modify,
-                    "email": st.session_state["username"]
-                }).json()[0]
-                st.success(response)
+            if action !="":
+                if submit:
+                    if action == "Modify last entry":
+                        response = requests.post('http://host.docker.internal:8000/modify_text', json= {
+                            "text": text_modify,
+                            "email": st.session_state["username"]
+                        }).json()[0]
+                        st.success(response)
+                    elif action == "Add an entry":
+                        response = requests.post('http://host.docker.internal:8000/add_text', json={
+                            "text": text_add,
+                            "email": st.session_state["username"]
+                        }).json()[0]
+                        st.success(response)
+                
 if __name__ == '__main__':
     if st._is_running_with_streamlit:
         conn = init_connection()

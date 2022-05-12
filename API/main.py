@@ -65,46 +65,6 @@ def get_all_patients():
     close_db(conn)
     return df["infos"].to_json(orient='index')   
 
-@app.get("/get_entry/{patient}")
-def get_last_entry(patient):
-    conn = sqlite3.connect("../storage/emotion_db.db")
-    cursor = conn.cursor()
-    row = cursor.execute(
-        """
-        SELECT entered_text, MAX(publication_date)
-        FROM texte as t
-        JOIN user as u
-        ON t.user_id = u.id
-        WHERE u.email = ?;
-        """,
-        (patient,)
-        ).fetchone()
-    close_db(conn)
-    return row[0]   
-
-@app.post("/modify_text")
-def modify_text(data: Dict):
-    conn = sqlite3.connect("../storage/emotion_db.db")
-    cursor = conn.cursor()
-    texte = data["text"]
-    email = data["email"]
-    cursor.execute(
-        """
-        UPDATE texte
-        SET entered_text = ?
-        WHERE (
-            SELECT MAX(publication_date)
-            FROM texte
-            JOIN user 
-            ON user.id = texte.user_id
-            WHERE user.email = ?
-        )
-        """,
-        (texte, email,)
-    )
-    close_db(conn)
-    return {"Last entry successfully updated"}
-
 @app.post('/modify')
 def post_entry(data: Dict):
     return data
@@ -152,6 +112,81 @@ def modify_entry(data: Dict):
         message = {"This patient already exists in the database"}
     close_db(conn)
     return message
+
+# ---------------------------------------------Patients-------------------------------------------------
+
+@app.get("/get_entry/{patient}")
+def get_last_entry(patient):
+    conn = sqlite3.connect("../storage/emotion_db.db")
+    cursor = conn.cursor()
+    row = cursor.execute(
+        """
+        SELECT entered_text, MAX(publication_date)
+        FROM texte as t
+        JOIN user as u
+        ON t.user_id = u.id
+        WHERE u.email = ?;
+        """,
+        (patient,)
+        ).fetchone()
+    close_db(conn)
+    return row[0]   
+
+@app.post("/modify_text")
+def modify_text(data: Dict):
+    conn = sqlite3.connect("../storage/emotion_db.db")
+    cursor = conn.cursor()
+    texte = data["text"]
+    email = data["email"]
+    cursor.execute(
+        """
+        UPDATE texte
+        SET entered_text = ?
+        WHERE (
+            SELECT MAX(publication_date)
+            FROM texte
+            JOIN user 
+            ON user.id = texte.user_id
+            WHERE user.email = ?
+        )
+        """,
+        (texte, email,)
+    )
+    close_db(conn)
+    return {"Last entry successfully updated"}
+
+@app.post('/add_text')
+def add_text(data: Dict):
+    conn = sqlite3.connect("../storage/emotion_db.db")
+    cursor = conn.cursor()
+    email = data["email"]
+    texte = data["text"]
+    today = datetime.now().strftime("%d-%m-%Y")
+    user_id = cursor.execute("SELECT id FROM user WHERE email = ?", (email,)).fetchone()[0]
+    row = cursor.execute(
+        """
+        SELECT publication_date
+        FROM texte
+        JOIN user
+        ON user.id = texte.user_id
+        WHERE publication_date = ?
+        AND user_id = ?;
+        """,
+        (today,user_id,)
+    )
+    if row:
+        close_db(conn)
+        return {"You already have an entry today, please select modify"}
+    
+    cursor.execute(
+        """
+        INSERT INTO texte(user_id, entered_text, publication_date)
+        VALUES (?, ?, ?)
+        """,
+        (user_id, texte, today,)
+    )
+    close_db(conn)
+    return {"Entry successfully added to the database"}
 
 if __name__ == "__main__":
     uvicorn.run("main:app")
