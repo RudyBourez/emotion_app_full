@@ -1,3 +1,4 @@
+from operator import mod
 import sqlite3
 from streamlit import cli as stcli
 import sys
@@ -14,11 +15,14 @@ def get_all_patients_name():
     return liste
 
 def get_dates():
-    return requests.get("http://host.docker.internal:8000/get_dates")
+    response = requests.get("http://host.docker.internal:8000/get_dates").json()
+    liste = pd.read_json(response,orient="index")
+    min_date = liste.min().item()
+    max_date = liste.max().item()
+    return liste, min_date, max_date
 
 def get_informations(patient):
     response = requests.get(f"http://host.docker.internal:8000/patients_info/{patient}").json()
-    print(response)
     return response
 
 def main():
@@ -71,58 +75,104 @@ def main():
                 selection_emotion = st.expander(label="Emotions")
                 selection_emotion.header("Emotions of patients")
                     # --------------------------------Choice of the date-------------------------------
-                col_emotion1, col_emotion2 = selection_emotion.columns(2)
-                custom_date = col_emotion1.button("Date")
-                weekly_monthly = col_emotion2.button("Weekly/Monthly")
+                date_type = selection_emotion.selectbox(options=["", "Unique", "Range"], label="Choose between an unique date or a range of dates")
                     # ---------------------------------------------------------------------------------
                 form_emotion = selection_emotion.form(key="Emotions",clear_on_submit=True)
-                patient = form_emotion.selectbox(options=patients_name, label="Patient")
-                # min_date, max_date = form_emotion.select_slider()
-                emotion_submit = form_emotion.form_submit_button("Submit")
+                if date_type != "":
+                    patient = form_emotion.selectbox(options=patients_name, label="Patient")
+                    if date_type == "Range":
+                        min_date, max_date = form_emotion.select_slider("Choose between two dates",options=dates, value=(date_max, date_min))
+                    elif date_type == "Unique":
+                        date = form_emotion.date_input(label="Choose a date")
+                    emotion_submit = form_emotion.form_submit_button("Submit")
                 
-                # if emotion_submit:
-                #     if date == "Monthly":
-                #         pass
-                #     elif date == "Weekly":
-                #         pass
-                #     else:
-                #         pass
                 # ---------------------------------------------------------------------------------------------
                 
                 # ------------------------------Form for patients informations---------------------------------
                 selection_information = st.expander(label="Informations")
                 selection_information.header("Patients informations")
-                crud = selection_information.selectbox(options=["","Add","Delete","Modify"], label="action")
+                crud = selection_information.selectbox(options=["","Add","Delete","Modify"], label="Action")
+                    # -----------------------------------Patients text---------------------------------------
+                patients_text = st.expander(label="Actions")
+                patients_text.subheader("vvv Click on the button vvv")
+                patients_list = patients_text.button("Get patients list")
+                patients_emotions = patients_text.button("Get all emotions")
+                    # ---------------------------------------------------------------------------------------
+
             if crud == "Add":
                 information_form = st.form(key="add", clear_on_submit=True)
-                first_name = information_form.text_input(label="first_name")
-                last_name = information_form.text_input(label="last_name")
-                birthdate = information_form.date_input(label="birthdate")
-                email = information_form.text_input(label="email")
-                add_submit = information_form.form_submit_button("Submit")
+                first_name_add = information_form.text_input(label="First Name")
+                last_name_add = information_form.text_input(label="Last Name")
+                birthdate_add = information_form.date_input(label="Birthdate")
+                email_add = information_form.text_input(label="Email")
+                submit = information_form.form_submit_button("Submit")
             elif crud == "Delete":
                 information_form = st.form(key="delete", clear_on_submit=True)
-                patient_selection = information_form.selectbox(options=patients_name, label="Name")
+                patient_selection_delete = information_form.selectbox(options=patients_name, label="Name")
                 radio = information_form.checkbox("Are you that you want to delete this entry ?")
-                delete_form = information_form.form_submit_button("Delete")
+                submit = information_form.form_submit_button("Delete")
             elif crud == "Modify":
                 patient_selection = st.selectbox(options=patients_name, label="Name")
                 information_form = st.form(key="modify", clear_on_submit=True)
                 patient_informations = get_informations(patient_selection)
-                first_name = information_form.text_input(label="First Name", value=patient_informations[0])
-                last_name = information_form.text_input(label="Last Name", value=patient_informations[1])
-                birthdate = information_form.date_input(label="Birthdate")
-                email = information_form.text_input(label="Email", value=patient_informations[2])
-                information_submit = information_form.form_submit_button("Submit")
+                first_name_modify = information_form.text_input(label="First Name", value=patient_informations[0])
+                last_name_modify = information_form.text_input(label="Last Name", value=patient_informations[1])
+                email_modify = information_form.text_input(label="Email", value=patient_informations[2])
+                birthdate_modify = information_form.text_input(label="Birthdate (DD-MM-YYYY)", value = patient_informations[3])
+                submit = information_form.form_submit_button("Submit")
                 # ---------------------------------------------------------------------------------------------
+
+            # -----------------------------------------Forms---------------------------------------------------------
+            if crud !="":
+                if submit:
+                    if crud == "Delete":
+                        if radio:
+                            requests.post("http://host.docker.internal:8000/delete", json=patient_selection_delete)
+                            st.success("This patient has been successfully removed from the database")
+                        else:
+                            st.warning("Please, check the box to enable the suppression")
+
+                    elif crud == "Add":
+                        requests.post("http://host.docker.internal:8000/add",json={
+                            "first_name": first_name_add,
+                            "last_name": last_name_add,
+                            "birthdate": birthdate_add,
+                            "email": email_add})
+
+                    elif crud == "Modify":
+                        requests.post("http://host.docker.internal:8000/modify",json={
+                            "first_name": first_name_modify,
+                            "last_name": last_name_modify,
+                            "birthdate": birthdate_modify,
+                            "email": email_modify})
+
+            if patients_list:
+                response = requests.get("http://host.docker.internal:8000/patients_list").json()
+                df = pd.read_json(response ,orient="index")
+                df.columns = ["id", "First Name", "Last Name", "E-mail", "Birthdate"]
+                df.drop("id",axis=1, inplace=True)
+                st.subheader("All patients informations")
+                st.write(df)
+            # ------------------------------------------------------------------------------------------------------
+
+
         else:
-            st.write("Welcome customer")
+            with st.sidebar:
+                action = st.radio(label="Options", options=["Add an entry", "Modify last entry", "Check entries"])
+
+            if action == "Add an entry":
+                form = st.form(key="Add an entry")
+                text = form.text_input(label="Type your text")
+                submit = form.form_submit_button("Submit")
+
+            if action == "Modify last entry":
+                response = requests.get("http://host.docker.internal:8000/get_entry/{patient}", patient=st.session_state["username"]).json()
             
 if __name__ == '__main__':
     if st._is_running_with_streamlit:
         conn = init_connection()
         patients_name = get_all_patients_name()
-        dates = get_dates()
+        dates, date_min, date_max = get_dates()
         main()
     else:
         sys.argv = ["streamlit", "run", sys.argv[0]]
