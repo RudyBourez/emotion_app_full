@@ -127,20 +127,22 @@ def main():
                 if submit:
                     if crud == "Delete":
                         if radio:
-                            requests.post("http://host.docker.internal:8000/delete", json=patient_selection_delete)
-                            st.success("This patient has been successfully removed from the database")
+                            response = requests.post("http://host.docker.internal:8000/delete", json={
+                                "full_name": patient_selection_delete})
+                            st.success(response.json()[0])
                         else:
                             st.warning("Please, check the box to enable the suppression")
 
                     elif crud == "Add":
-                        requests.post("http://host.docker.internal:8000/add",json={
+                        response = requests.post("http://host.docker.internal:8000/add",json={
                             "first_name": first_name_add,
                             "last_name": last_name_add,
-                            "birthdate": birthdate_add,
-                            "email": email_add})
+                            "birthdate": str(birthdate_add),
+                            "email": email_add}).json()[0]
+                        st.success(response)
 
                     elif crud == "Modify":
-                        requests.post("http://host.docker.internal:8000/modify",json={
+                        response = requests.post("http://host.docker.internal:8000/modify",json={
                             "first_name": first_name_modify,
                             "last_name": last_name_modify,
                             "birthdate": birthdate_modify,

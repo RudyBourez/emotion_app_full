@@ -4,13 +4,14 @@ from fastapi import FastAPI
 import uvicorn
 import pandas as pd
 import sqlite3
+from datetime import datetime
 import pickle
 
-app = FastAPI()
+def close_db(conn):
+    conn.commit()
+    conn.close()
 
-@app.get('/')
-def main():
-    return {"Hello World"}
+app = FastAPI()
 
 @app.get('/patients_name')
 def get_patients_name():
@@ -20,6 +21,7 @@ def get_patients_name():
     df["first_name"] = [name[0] for name in cursor.execute("SELECT first_name FROM user")]
     df["last_name"] = [name[0] for name in cursor.execute("SELECT last_name FROM user")]
     df["full_name"] = df["first_name"] + " " + df["last_name"]
+    close_db(conn)
     return df["full_name"].to_json(orient="index")
 
 @app.get("/get_dates")
@@ -30,6 +32,7 @@ def get_dates():
     rows = cursor.execute("SELECT publication_date FROM texte").fetchall()
     liste = [row[0] for row in rows]
     df["date"] = pd.date_range(start=min(liste), end=max(liste))
+    close_db(conn)
     return df["date"].dt.strftime("%d-%m-%Y").to_json(orient="index")
 
 @app.get("/patients_info/{patient}")
@@ -45,6 +48,7 @@ def get_infos(patient):
         AND last_name = ?;
         """, (liste[0], liste[1])
         ).fetchone()
+    close_db(conn)
     return row   
 
 @app.get("/patients_list")
@@ -59,6 +63,7 @@ def get_all_patients():
         ).fetchall()
     df = pd.DataFrame()
     df["infos"] = [row for row in rows]
+    close_db(conn)
     return df["infos"].to_json(orient='index')   
 
 @app.get("/get_entry/{patient}")
@@ -74,6 +79,7 @@ def get_last_entry(patient):
         WHERE t.date_publication = ;
         """
         ).fetchone()
+    close_db(conn)
     return row   
 
 
@@ -83,25 +89,48 @@ def post_entry(data: Dict):
     return data
 
 @app.post('/delete')
-def delete_entry(data: str):
-    pass
+def delete_entry(data: Dict):
+    conn = sqlite3.connect("../storage/emotion_db.db")
+    cursor = conn.cursor()
+    splitted = data["full_name"].split(" ")
+    cursor.execute(
+        """
+        DELETE
+        FROM user
+        WHERE first_name = ?
+        AND last_name = ?
+        """,
+        (splitted[0], splitted[1])
+    )
+    close_db(conn)
+    return {"Successfully removed from the database"}
 
 @app.post('/add')
 def modify_entry(data: Dict):
     conn = sqlite3.connect("../storage/emotion_db.db")
     cursor = conn.cursor()
+    data["birthdate"] = datetime.strptime(data["birthdate"],"%Y-%m-%d").strftime("%d-%m-%Y")
     duplicate = cursor.execute(
-        """SELECT * FROM user WHERE email = ?
-        """, data.email).fetchone()
+        """
+        SELECT *
+        FROM user
+        WHERE email = ?
+        """,
+        (data["email"],)
+        ).fetchone()
+    print(data["birthdate"])
     if not duplicate:
         cursor.execute(
-            """INSERT INTO user(first_name, last_name, email, birthdate)
+            """
+            INSERT INTO user(first_name, last_name, birthdate, email)
             VALUES (?,?,?,?)
-            """, data.keys()
+            """, list(data.values())
             )
-        return {"Successfully added to the database"}
+        message = {"Successfully added to the database"}
     else:
-        return {"This patient already exists in the database"}
+        message = {"This patient already exists in the database"}
+    close_db(conn)
+    return message
 
 if __name__ == "__main__":
     uvicorn.run("main:app")

@@ -7,7 +7,7 @@ cursor = con.cursor()
 
 cursor.execute(
     '''CREATE TABLE IF NOT EXISTS user (
-    id NOT NULL PRIMARY KEY,
+    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
     first_name VARCHAR(50) NOT NULL,
     last_name VARCHAR(50) NOT NULL,
     email VARCHAR(255) NOT NULL,
