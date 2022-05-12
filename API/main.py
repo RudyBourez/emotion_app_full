@@ -132,6 +132,32 @@ def get_last_entry(patient):
     close_db(conn)
     return row[0]   
 
+@app.get('/get_entries/{items}')
+def get_entries(items):
+    conn = sqlite3.connect("../storage/emotion_db.db")
+    cursor = conn.cursor()
+    data = items.split("+")
+    date = datetime.strptime(data[1], "%Y-%m-%d").strftime("%d-%m-%Y")
+    user_id = cursor.execute("SELECT id FROM user WHERE email = ?", (data[0],)).fetchone()[0]
+    row = cursor.execute(
+        """
+        SELECT entered_text
+        FROM texte
+        JOIN user
+        ON user.id = texte.user_id
+        WHERE publication_date = ?
+        AND user_id = ?;
+        """,
+        (date, user_id)
+    )
+    if row:
+        close_db(conn)
+        return {row}
+    else: 
+        close_db(conn)
+        return {"There is no entry at this date"}
+
+
 @app.post("/modify_text")
 def modify_text(data: Dict):
     conn = sqlite3.connect("../storage/emotion_db.db")

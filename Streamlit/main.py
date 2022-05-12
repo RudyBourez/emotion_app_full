@@ -172,6 +172,11 @@ def main():
                 form = st.form(key="Modify last entry")
                 text_modify = form.text_input(label="Type your text", value=response)
                 submit = form.form_submit_button("Submit")
+            
+            if action == "Check entries":
+                form = st.form(key="Check entries")
+                date = form.date_input(label="Choose a date")
+                submit = form.form_submit_button("Submit")
 
             if action !="":
                 if submit:
@@ -187,7 +192,10 @@ def main():
                             "email": st.session_state["username"]
                         }).json()[0]
                         st.success(response)
-                
+                    else:
+                        response = requests.get(f'http://host.docker.internal:8000/get_entries/{st.session_state["username"] +"+"+str(date)}').json()[0]
+                        st.write(response)
+
 if __name__ == '__main__':
     if st._is_running_with_streamlit:
         conn = init_connection()
