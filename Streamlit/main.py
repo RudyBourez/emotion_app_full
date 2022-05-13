@@ -63,9 +63,9 @@ def main():
             st.session_state["username"] = st.session_state["username"]
             return True
 
-
     if authentification():
         st.markdown(f'<p style="text-align:right">Welcome back, {st.session_state["username"]}<p>', unsafe_allow_html=True)
+        container = st.container()
         if st.session_state["admin"]:
             # -------------------------------------------Sidebar-------------------------------------------------------
             with st.sidebar:
@@ -80,12 +80,20 @@ def main():
                     patient = form_emotion.selectbox(options=patients_name, label="Patient")
                     if date_type == "Range":
                         min_date, max_date = form_emotion.select_slider("Choose between two dates",options=dates, value=(date_max, date_min))
+                        emotion_submit = form_emotion.form_submit_button("Submit")
+                        if emotion_submit:
+                            response = requests.get(f'http://host.docker.internal:8000/range_prediction/{patient}/{min_date}/{max_date}').json()
+                            df = pd.read_json(response, orient="index")
+                            container.write(df)
                     elif date_type == "Unique":
-                        date = form_emotion.date_input(label="Choose a date")
-                    emotion_submit = form_emotion.form_submit_button("Submit")
-                
+                        date_choosed = form_emotion.date_input(label="Choose a date")
+                        emotion_submit = form_emotion.form_submit_button("Submit")
+                        if emotion_submit:
+                            response = requests.get(f'http://host.docker.internal:8000/prediction/{patient}/{date_choosed}').json()[0]
+                            container.write(response)
+                            
                 # ---------------------------------------------------------------------------------------------
-                
+                        
                 # ------------------------------Form for patients informations---------------------------------
                 selection_information = st.expander(label="Informations")
                 selection_information.header("Patients informations")

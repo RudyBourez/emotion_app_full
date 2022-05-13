@@ -2,3 +2,5 @@ fastapi
 uvicorn
 sklearn
 pandas
+tensorflow
+texthero
