@@ -6,6 +6,9 @@ import sqlite3
 from datetime import datetime
 import pickle
 
+def open_db():
+    return sqlite3.connect("../storage/emotion_db.db", check_same_thread=False)
+
 def close_db(conn):
     conn.commit()
     conn.close()
@@ -14,7 +17,7 @@ app = FastAPI()
 
 @app.get('/patients_name')
 def get_patients_name():
-    conn = sqlite3.connect("../storage/emotion_db.db")
+    conn = open_db()
     cursor = conn.cursor()
     df = pd.DataFrame()
     df["first_name"] = [name[0] for name in cursor.execute("SELECT first_name FROM user")]
@@ -25,7 +28,7 @@ def get_patients_name():
 
 @app.get("/get_dates")
 def get_dates():
-    conn = sqlite3.connect("../storage/emotion_db.db")
+    conn = open_db()
     cursor = conn.cursor()
     df = pd.DataFrame()
     rows = cursor.execute("SELECT publication_date FROM texte").fetchall()
@@ -37,7 +40,7 @@ def get_dates():
 @app.get("/patients_info/{patient}")
 def get_infos(patient):
     liste = patient.split(" ")
-    conn = sqlite3.connect("../storage/emotion_db.db")
+    conn = open_db()
     cursor = conn.cursor()
     row = cursor.execute(
         """
@@ -52,7 +55,7 @@ def get_infos(patient):
 
 @app.get("/patients_list")
 def get_all_patients():
-    conn = sqlite3.connect("../storage/emotion_db.db")
+    conn = open_db()
     cursor = conn.cursor()
     rows = cursor.execute(
         """
@@ -71,7 +74,7 @@ def post_entry(data: Dict):
 
 @app.post('/delete')
 def delete_entry(data: Dict):
-    conn = sqlite3.connect("../storage/emotion_db.db")
+    conn = open_db()
     cursor = conn.cursor()
     splitted = data["full_name"].split(" ")
     cursor.execute(
@@ -88,7 +91,7 @@ def delete_entry(data: Dict):
 
 @app.post('/add')
 def modify_entry(data: Dict):
-    conn = sqlite3.connect("../storage/emotion_db.db")
+    conn = open_db()
     cursor = conn.cursor()
     data["birthdate"] = datetime.strptime(data["birthdate"],"%Y-%m-%d").strftime("%d-%m-%Y")
     duplicate = cursor.execute(
@@ -117,7 +120,7 @@ def modify_entry(data: Dict):
 
 @app.get("/get_entry/{patient}")
 def get_last_entry(patient):
-    conn = sqlite3.connect("../storage/emotion_db.db")
+    conn = open_db()
     cursor = conn.cursor()
     row = cursor.execute(
         """
@@ -132,27 +135,26 @@ def get_last_entry(patient):
     close_db(conn)
     return row[0]   
 
-@app.get('/get_entries/{items}')
-def get_entries(items):
-    conn = sqlite3.connect("../storage/emotion_db.db")
+@app.get('/get_entries/{email}/{date}')
+def get_entries(email, date):
+    conn = open_db()
     cursor = conn.cursor()
-    data = items.split("+")
-    date = datetime.strptime(data[1], "%Y-%m-%d").strftime("%d-%m-%Y")
-    user_id = cursor.execute("SELECT id FROM user WHERE email = ?", (data[0],)).fetchone()[0]
+    date = datetime.date(datetime.strptime(date, "%Y-%m-%d"))
+    print(email, date, type(date))
     row = cursor.execute(
         """
         SELECT entered_text
-        FROM texte
-        JOIN user
-        ON user.id = texte.user_id
+        FROM texte as t
+        JOIN user as u
+        ON u.id = t.user_id
         WHERE publication_date = ?
-        AND user_id = ?;
+        AND u.email = ?;
         """,
-        (date, user_id)
-    )
+        (date, email,)
+    ).fetchone()
     if row:
         close_db(conn)
-        return {row}
+        return {row[0]}
     else: 
         close_db(conn)
         return {"There is no entry at this date"}
@@ -168,13 +170,13 @@ def modify_text(data: Dict):
         """
         UPDATE texte
         SET entered_text = ?
-        WHERE (
+        WHERE publication_date = (
             SELECT MAX(publication_date)
             FROM texte
             JOIN user 
             ON user.id = texte.user_id
             WHERE user.email = ?
-        )
+        );
         """,
         (texte, email,)
     )
@@ -186,9 +188,9 @@ def add_text(data: Dict):
     conn = sqlite3.connect("../storage/emotion_db.db")
     cursor = conn.cursor()
     email = data["email"]
+    user_id = cursor.execute("SELECT id FROM user WHERE email = ?", (email,))
     texte = data["text"]
-    today = datetime.now().strftime("%d-%m-%Y")
-    user_id = cursor.execute("SELECT id FROM user WHERE email = ?", (email,)).fetchone()[0]
+    today = datetime.date(datetime.now())
     row = cursor.execute(
         """
         SELECT publication_date
@@ -196,9 +198,9 @@ def add_text(data: Dict):
         JOIN user
         ON user.id = texte.user_id
         WHERE publication_date = ?
-        AND user_id = ?;
+        AND user.email = ?;
         """,
-        (today,user_id,)
+        (today,email,)
     )
     if row:
         close_db(conn)

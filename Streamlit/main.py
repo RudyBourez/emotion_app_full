@@ -6,8 +6,6 @@ import pandas as pd
 import streamlit as st
 import requests
 
-def init_connection():
-    return sqlite3.connect("../storage/emotion_db.db")
     
 def get_all_patients_name():
     response = requests.get("http://host.docker.internal:8000/patients_name").json()
@@ -192,13 +190,13 @@ def main():
                             "email": st.session_state["username"]
                         }).json()[0]
                         st.success(response)
-                    else:
-                        response = requests.get(f'http://host.docker.internal:8000/get_entries/{st.session_state["username"] +"+"+str(date)}').json()[0]
+                    elif action == "Check entries":
+                        response = requests.get(f'http://host.docker.internal:8000/get_entries/{st.session_state["username"]}/{date}').json()[0]
                         st.write(response)
+
 
 if __name__ == '__main__':
     if st._is_running_with_streamlit:
-        conn = init_connection()
         patients_name = get_all_patients_name()
         dates, date_min, date_max = get_dates()
         main()
