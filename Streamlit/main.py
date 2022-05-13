@@ -113,6 +113,7 @@ def main():
                 patient_selection = st.selectbox(options=patients_name, label="Name")
                 information_form = st.form(key="modify", clear_on_submit=True)
                 patient_informations = get_informations(patient_selection)
+                patient_email = patient_informations[2]
                 first_name_modify = information_form.text_input(label="First Name", value=patient_informations[0])
                 last_name_modify = information_form.text_input(label="Last Name", value=patient_informations[1])
                 email_modify = information_form.text_input(label="Email", value=patient_informations[2])
@@ -143,8 +144,11 @@ def main():
                         response = requests.post("http://host.docker.internal:8000/modify",json={
                             "first_name": first_name_modify,
                             "last_name": last_name_modify,
+                            "email": email_modify,
                             "birthdate": birthdate_modify,
-                            "email": email_modify}).json()[0]
+                            "user" : patient_email
+                            }).json()[0]
+                        st.success(response)
 
             if patients_list:
                 response = requests.get("http://host.docker.internal:8000/patients_list").json()
@@ -175,7 +179,8 @@ def main():
                 form = st.form(key="Check entries")
                 date = form.date_input(label="Choose a date")
                 submit = form.form_submit_button("Submit")
-
+                
+            # ------------------------------------------Forms--------------------------------------------------
             if action !="":
                 if submit:
                     if action == "Modify last entry":
@@ -193,7 +198,7 @@ def main():
                     elif action == "Check entries":
                         response = requests.get(f'http://host.docker.internal:8000/get_entries/{st.session_state["username"]}/{date}').json()[0]
                         st.write(response)
-
+            # --------------------------------------------------------------------------------------------------
 
 if __name__ == '__main__':
     if st._is_running_with_streamlit:

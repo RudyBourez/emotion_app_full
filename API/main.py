@@ -69,8 +69,20 @@ def get_all_patients():
     return df["infos"].to_json(orient='index')   
 
 @app.post('/modify')
-def post_entry(data: Dict):
-    return data
+def modify_entry(data: Dict):
+    conn = open_db()
+    cursor = conn.cursor()
+    print(list(data.values()))
+    cursor.execute(
+    """
+    UPDATE user
+    SET first_name = ?, last_name = ?, email = ?, birthdate = ?
+    WHERE email = ?;
+    """,
+    tuple(data.values())
+    )
+    close_db(conn)
+    return {"Patient informations successfully updated"}
 
 @app.post('/delete')
 def delete_entry(data: Dict):
@@ -90,7 +102,7 @@ def delete_entry(data: Dict):
     return {"Successfully removed from the database"}
 
 @app.post('/add')
-def modify_entry(data: Dict):
+def add_entry(data: Dict):
     conn = open_db()
     cursor = conn.cursor()
     data["birthdate"] = datetime.strptime(data["birthdate"],"%Y-%m-%d").strftime("%d-%m-%Y")
@@ -102,7 +114,7 @@ def modify_entry(data: Dict):
         """,
         (data["email"],)
         ).fetchone()
-    print(data["birthdate"])
+    
     if not duplicate:
         cursor.execute(
             """
