@@ -10,8 +10,9 @@ from datetime import datetime
 import numpy as np
 # Machine Learning
 import texthero as hero
-import pickle
+from sklearn.feature_extraction.text import CountVectorizer
 import tensorflow as tf
+from joblib import load
 
 def open_db():
     return sqlite3.connect("../storage/emotion_db.db", check_same_thread=False)
@@ -21,7 +22,8 @@ def close_db(conn):
     conn.close()
 
 def preprocess_text(df):
-    df['clean_text'] = hero.clean(df['text'])
+    vectorizer = load("vectorizer.joblib")
+    df['clean_text'] = hero.clean(df.text)
     default_stopwords = hero.stopwords.DEFAULT
     try:
         default_stopwords.remove("not")
@@ -29,14 +31,15 @@ def preprocess_text(df):
         pass
     custom_stopwords = default_stopwords.union(set(["feel", "feeling", "like", "im", "know", "ive", "one", "get", "really",
                                                 "bit", "want", "would", "make", "little"]))
-    df['clean_text'] = hero.remove_stopwords(df['clean_text'], custom_stopwords)
-    vectorizer = pickle.load(open("vectorizer.pkl","rb"))
-    return vectorizer.transform(df["clean_text"]).toarray()
+    df['clean_text'] = hero.remove_stopwords(df.clean_text, custom_stopwords)
+    array = vectorizer.transform(df.clean_text).toarray()
+    return array
     
-def make_pred(df):
+def make_pred(array):
+    df = pd.DataFrame()
     liste_emotion = ['sadness', 'anger', 'love', 'surprise', 'fear', 'happy']
     model = tf.keras.models.load_model('model')
-    predictions = np.argmax(model.predict(df["clean_text"]), axis=1)
+    predictions = np.argmax(model.predict(array), axis=1)
     df["pred"] = [liste_emotion[pred] for pred in predictions]
     return df["pred"]
      
@@ -106,10 +109,9 @@ def make_prediction(patient, date):
     text = cursor.execute("SELECT entered_text FROM texte WHERE user_id = ? AND publication_date = ?",
                           (patient_id, date)).fetchone()[0]
     df = pd.DataFrame()
-    df["text"] = [line for line in text]
-    df["clean_text"] = preprocess_text(df)
-    print(df["clean_text"])
-    # df["emotion"] = make_pred(df)
+    df["text"] = text
+    array = preprocess_text(df)
+    df["emotion"] = make_pred(array)
     return {True} #df[["text", "emotion"]].to_json(orient="split")
 
 @app.get('/range_prediction/{patient}/{min_date}/{max_date}')
@@ -125,8 +127,9 @@ def make_prediction(patient, min_date, max_date):
                           (patient_id, min_date, max_date,)).fetchall()
     df = pd.DataFrame()
     df["text"] = [line[0] for line in text]
+    array = preprocess_text(df)
+    df["emotion"] = make_pred(array)
     return df["text"].to_json(orient="index")
-
 
 @app.post('/modify')
 def modify_entry(data: Dict):
