@@ -10,8 +10,8 @@ from datetime import datetime
 import numpy as np
 # Machine Learning
 import texthero as hero
-from sklearn.feature_extraction.text import CountVectorizer
 import tensorflow as tf
+from sklearn.feature_extraction.text import CountVectorizer
 from joblib import load
 
 def open_db():
@@ -22,7 +22,9 @@ def close_db(conn):
     conn.close()
 
 def preprocess_text(df):
-    vectorizer = load("vectorizer.joblib")
+    vectorizer = CountVectorizer()
+    X_train = pd.read_csv("X_train.csv")
+    vectorizer.fit(X_train.clean_text)
     df['clean_text'] = hero.clean(df.text)
     default_stopwords = hero.stopwords.DEFAULT
     try:
@@ -38,7 +40,7 @@ def preprocess_text(df):
 def make_pred(array):
     df = pd.DataFrame()
     liste_emotion = ['sadness', 'anger', 'love', 'surprise', 'fear', 'happy']
-    model = tf.keras.models.load_model('model')
+    model = tf.keras.models.load_model('model.h5')
     predictions = np.argmax(model.predict(array), axis=1)
     df["pred"] = [liste_emotion[pred] for pred in predictions]
     return df["pred"]
@@ -129,7 +131,7 @@ def make_prediction(patient, min_date, max_date):
     df["text"] = [line[0] for line in text]
     array = preprocess_text(df)
     df["emotion"] = make_pred(array)
-    return df["text"].to_json(orient="index")
+    return df[["text","emotion"]].to_json(orient="index")
 
 @app.post('/modify')
 def modify_entry(data: Dict):
