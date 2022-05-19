@@ -1,5 +1,4 @@
-from operator import mod
-import sqlite3
+import matplotlib.pyplot as plt
 from streamlit import cli as stcli
 import sys
 import pandas as pd
@@ -84,7 +83,10 @@ def main():
                         if emotion_submit:
                             response = requests.get(f'http://host.docker.internal:8000/range_prediction/{patient}/{min_date}/{max_date}').json()
                             df = pd.read_json(response, orient="index")
-                            container.write(df)
+                            table = df.groupby("emotion").count().reset_index()
+                            fig,ax = plt.subplots()
+                            ax.pie(labels=table["emotion"], x=table.text, autopct='%1.1f%%')
+                            container.pyplot(fig)
                     elif date_type == "Unique":
                         date_choosed = form_emotion.date_input(label="Choose a date")
                         emotion_submit = form_emotion.form_submit_button("Submit")
@@ -165,6 +167,14 @@ def main():
                 df.drop("id",axis=1, inplace=True)
                 st.subheader("All patients informations")
                 st.write(df)
+                
+            if patients_emotions:
+                response = requests.get("http://host.docker.internal:8000/range_prediction_all").json()
+                df = pd.read_json(response, orient="index")
+                table = df.groupby("emotion").count().reset_index()
+                fig,ax = plt.subplots()
+                ax.pie(labels=table["emotion"], x=table.text, autopct='%1.1f%%')
+                container.pyplot(fig)
             # ------------------------------------------------------------------------------------------------------
 
 

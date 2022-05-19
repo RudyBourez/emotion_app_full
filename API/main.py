@@ -111,9 +111,10 @@ def make_prediction(patient, date):
     text = cursor.execute("SELECT entered_text FROM texte WHERE user_id = ? AND publication_date = ?",
                           (patient_id, date)).fetchone()[0]
     df = pd.DataFrame()
-    df["text"] = text
-    array = preprocess_text(df)
-    df["emotion"] = make_pred(array)
+    df["text"] = list(text)
+    print(df.text)
+    # array = preprocess_text(df)
+    # df["emotion"] = make_pred(array)
     return {True} #df[["text", "emotion"]].to_json(orient="split")
 
 @app.get('/range_prediction/{patient}/{min_date}/{max_date}')
@@ -127,6 +128,18 @@ def make_prediction(patient, min_date, max_date):
                                 patient_full_name_list).fetchone()[0]
     text = cursor.execute("SELECT entered_text FROM texte WHERE user_id = ? AND publication_date BETWEEN ? AND ?",
                           (patient_id, min_date, max_date,)).fetchall()
+    df = pd.DataFrame()
+    df["text"] = [line[0] for line in text]
+    array = preprocess_text(df)
+    df["emotion"] = make_pred(array)
+    return df[["text","emotion"]].to_json(orient="index")
+
+@app.get('/range_prediction_all')
+def range_prediction_all():
+    conn = open_db()
+    cursor = conn.cursor()
+
+    text = cursor.execute("SELECT entered_text FROM texte").fetchall()
     df = pd.DataFrame()
     df["text"] = [line[0] for line in text]
     array = preprocess_text(df)
